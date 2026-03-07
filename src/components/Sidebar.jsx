@@ -8,6 +8,10 @@ const NAV = [
   { to: '/intelligence',   icon: '◉', label: 'Intelligence' },
 ];
 
+const BOTTOM_NAV = [
+  { to: '/billing', icon: '◇', label: 'Plans & Billing' },
+];
+
 export default function Sidebar() {
   const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -41,6 +45,21 @@ export default function Sidebar() {
       <div className="sidebar-section">
         <div className="sidebar-section-label">Workspace</div>
         {NAV.map(({ to, icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="nav-item-icon">{icon}</span>
+            {label}
+          </NavLink>
+        ))}
+      </div>
+
+      {/* Bottom nav */}
+      <div className="sidebar-section" style={{ marginTop: 'auto' }}>
+        <div className="sidebar-section-label">Account</div>
+        {BOTTOM_NAV.map(({ to, icon, label }) => (
           <NavLink
             key={to}
             to={to}

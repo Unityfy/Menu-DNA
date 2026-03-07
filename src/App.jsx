@@ -6,7 +6,7 @@ import AuthPage                  from './pages/AuthPage';
 import DashboardPage             from './pages/DashboardPage';
 import UploadPage                from './pages/UploadPage';
 import ProfitabilityPage         from './pages/ProfitabilityPage';
-import IntelligencePage          from './pages/IntelligencePage';
+import BillingPage            from './pages/BillingPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -74,6 +74,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Layout><IntelligencePage /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <Layout><BillingPage /></Layout>
           </ProtectedRoute>
         }
       />

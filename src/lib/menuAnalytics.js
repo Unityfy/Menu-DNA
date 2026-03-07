@@ -4,34 +4,8 @@
  * and menu intelligence scoring.
  */
 
-// ─── CSV Parsing & Normalization ────────────────────────────────────────────
-
-/**
- * Expected CSV columns (flexible, case-insensitive):
- * dish_name | category | price | cost | units_sold | prep_time_minutes
- */
-export function normalizeCSVRow(row) {
-  const get = (...keys) => {
-    for (const k of keys) {
-      const found = Object.keys(row).find(
-        rk => rk.trim().toLowerCase().replace(/\s+/g, '_') === k
-      );
-      if (found && row[found] !== undefined && row[found] !== '') return row[found];
-    }
-    return null;
-  };
-
-  const name      = get('dish_name', 'name', 'item', 'item_name');
-  const category  = get('category', 'section', 'type') || 'Uncategorized';
-  const price     = parseFloat(get('price', 'selling_price', 'sell_price') || 0);
-  const cost      = parseFloat(get('cost', 'food_cost', 'cogs', 'ingredient_cost') || 0);
-  const unitsSold = parseInt(get('units_sold', 'quantity', 'qty', 'qty_sold', 'sales_volume') || 0, 10);
-  const prepTime  = parseInt(get('prep_time_minutes', 'prep_time', 'prep', 'time') || 0, 10);
-
-  if (!name) return null;
-
-  return { name, category, price, cost, unitsSold, prepTime };
-}
+// Re-export normalizeRow from posParser for backward compatibility
+export { normalizeRow as normalizeCSVRow } from './posParser.js';
 
 // ─── Profitability Metrics ───────────────────────────────────────────────────
 
@@ -240,23 +214,3 @@ export function generateRecommendations(dishes) {
 
   return recs;
 }
-
-// ─── Sample Data ─────────────────────────────────────────────────────────────
-
-export const SAMPLE_DATA = `dish_name,category,price,cost,units_sold,prep_time_minutes
-Grilled Chicken,Mains,480,160,220,12
-Paneer Tikka,Starters,320,95,180,8
-Dal Makhani,Mains,260,60,310,20
-Butter Naan,Breads,60,15,520,5
-Caesar Salad,Salads,280,90,45,7
-Lamb Rogan Josh,Mains,620,220,95,25
-Mango Lassi,Beverages,140,30,280,3
-Fish Amritsari,Starters,380,145,70,10
-Veg Biryani,Rice,340,100,165,18
-Chocolate Lava Cake,Desserts,220,65,125,12
-Mushroom Risotto,Mains,440,160,35,22
-Club Sandwich,Snacks,260,80,90,8
-Masala Chai,Beverages,80,18,400,4
-Prawn Masala,Mains,560,210,60,15
-Mixed Veg Handi,Mains,280,75,140,20
-`;

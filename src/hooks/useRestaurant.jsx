@@ -12,6 +12,7 @@ import {
   computePortfolioSummary,
   generateRecommendations,
 } from '../lib/menuAnalytics';
+import { normalizeRow } from '../lib/posParser.js';
 
 export function useRestaurant() {
   const { user } = useAuth();
