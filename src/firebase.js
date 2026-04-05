@@ -1,3 +1,13 @@
+/**
+ * ⚠️ DEPRECATED: This file is no longer used.
+ * Firebase has been migrated to Supabase.
+ * Use src/supabase.js instead.
+ * 
+ * This file is kept for reference only and can be safely deleted.
+ */
+
+// DEPRECATED - USE supabase.js INSTEAD
+
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';

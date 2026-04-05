@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  collection, doc, getDocs, addDoc, deleteDoc,
-  query, orderBy, setDoc, serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { useAuth } from './useAuth';
 import {
   computeDishMetrics,
@@ -23,23 +19,19 @@ export function useRestaurant() {
   const [loading,       setLoading]      = useState(false);
   const [error,         setError]        = useState(null);
 
-  const uploadsRef = user
-    ? collection(db, 'users', user.uid, 'uploads')
-    : null;
-
-  const menuRef = user
-    ? collection(db, 'users', user.uid, 'menu_data')
-    : null;
-
   // ── Load existing menu data ────────────────────────────────────────
   const loadMenuData = useCallback(async () => {
-    if (!menuRef) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const q    = query(menuRef, orderBy('name'));
-      const snap = await getDocs(q);
-      const raw  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      processAndSetDishes(raw);
+      const { data, error: err } = await supabase
+        .from('menu_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
+
+      if (err) throw err;
+      processAndSetDishes(data || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -64,34 +56,44 @@ export function useRestaurant() {
     setRecs(recs);
   }
 
-  // ── Save dishes from CSV upload to Firestore ───────────────────────
+  // ── Save dishes from CSV upload to Supabase ────────────────────────
   const saveMenuData = useCallback(async (dishes, fileName) => {
-    if (!user || !menuRef) return;
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      // Clear existing and rewrite (full refresh for MVP)
-      const snap = await getDocs(menuRef);
-      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+      // Clear existing menu data for this user
+      const { error: deleteErr } = await supabase
+        .from('menu_data')
+        .delete()
+        .eq('user_id', user.id);
 
-      // Insert new dishes
-      await Promise.all(
-        dishes.map(dish =>
-          addDoc(menuRef, {
-            ...dish,
-            uploadedAt: new Date().toISOString(),
-          })
-        )
-      );
+      if (deleteErr) throw deleteErr;
+
+      // Insert new dishes with user_id
+      const dishesWithUserId = dishes.map(dish => ({
+        ...dish,
+        user_id: user.id,
+        uploaded_at: new Date().toISOString(),
+      }));
+
+      const { error: insertErr } = await supabase
+        .from('menu_data')
+        .insert(dishesWithUserId);
+
+      if (insertErr) throw insertErr;
 
       // Log upload
-      if (uploadsRef) {
-        await addDoc(uploadsRef, {
-          fileName,
-          dishCount:   dishes.length,
-          uploadedAt:  serverTimestamp(),
-        });
-      }
+      const { error: uploadLogErr } = await supabase
+        .from('uploads')
+        .insert([{
+          user_id: user.id,
+          file_name: fileName,
+          dish_count: dishes.length,
+          uploaded_at: new Date().toISOString(),
+        }]);
+
+      if (uploadLogErr) throw uploadLogErr;
 
       processAndSetDishes(dishes);
     } catch (e) {
@@ -104,11 +106,16 @@ export function useRestaurant() {
 
   // ── Load upload history ────────────────────────────────────────────
   const loadUploads = useCallback(async () => {
-    if (!uploadsRef) return;
+    if (!user) return;
     try {
-      const q    = query(uploadsRef, orderBy('uploadedAt', 'desc'));
-      const snap = await getDocs(q);
-      setUploads(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const { data, error: err } = await supabase
+        .from('uploads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('uploaded_at', { ascending: false });
+
+      if (err) throw err;
+      setUploads(data || []);
     } catch (e) {
       setError(e.message);
     }

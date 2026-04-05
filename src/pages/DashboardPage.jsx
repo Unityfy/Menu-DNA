@@ -122,7 +122,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="page-header animate-fade-up">
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.05em' }}>
-          {greeting}, {profile?.displayName || user?.email?.split('@')[0]} —
+          {greeting}, {profile?.display_name || user?.email?.split('@')[0]} —
         </div>
         <h1 className="page-title">Restaurant Overview</h1>
         <p className="page-subtitle">

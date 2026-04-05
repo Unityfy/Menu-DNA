@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { doc, updateDoc, addDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { useAuth } from './useAuth';
 import {
   openSubscriptionCheckout,
@@ -20,10 +19,14 @@ export function useBilling() {
   const loadPayments = useCallback(async () => {
     if (!user) return;
     try {
-      const ref  = collection(db, 'users', user.uid, 'payments');
-      const q    = query(ref, orderBy('createdAt', 'desc'));
-      const snap = await getDocs(q);
-      setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const { data, error: err } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (err) throw err;
+      setPayments(data || []);
     } catch (e) {
       console.error('Failed to load payments:', e);
     }
@@ -33,33 +36,42 @@ export function useBilling() {
     if (user) loadPayments();
   }, [user, loadPayments]);
 
-  // ── Save payment record to Firestore ────────────────────────────
+  // ── Save payment record to Supabase ───────────────────────────────
   const savePaymentRecord = async (planId, paymentResponse, type = 'subscription') => {
     if (!user) return;
-    await addDoc(collection(db, 'users', user.uid, 'payments'), {
-      planId,
-      type,
-      status: 'success',
-      razorpayPaymentId:    paymentResponse.razorpay_payment_id,
-      razorpayOrderId:      paymentResponse.razorpay_order_id      || null,
-      razorpaySubscriptionId: paymentResponse.razorpay_subscription_id || null,
-      razorpaySignature:    paymentResponse.razorpay_signature,
-      createdAt:            new Date().toISOString(),
-    });
+    const { error: err } = await supabase
+      .from('payments')
+      .insert([{
+        user_id: user.id,
+        plan_id: planId,
+        type,
+        status: 'success',
+        razorpay_payment_id:    paymentResponse.razorpay_payment_id,
+        razorpay_order_id:      paymentResponse.razorpay_order_id      || null,
+        razorpay_subscription_id: paymentResponse.razorpay_subscription_id || null,
+        razorpay_signature:    paymentResponse.razorpay_signature,
+        created_at:            new Date().toISOString(),
+      }]);
+
+    if (err) throw err;
   };
 
-  // ── Update plan in Firestore after successful payment ────────────
+  // ── Update plan in Supabase after successful payment ───────────────
   const activatePlan = async (planId, paymentResponse) => {
     if (!user) return;
-    const userRef = doc(db, 'users', user.uid);
-    const now     = new Date().toISOString();
+    const now = new Date().toISOString();
 
-    await updateDoc(userRef, {
-      plan:           planId,
-      planActivatedAt: now,
-      planStatus:     'active',
-      razorpaySubscriptionId: paymentResponse.razorpay_subscription_id || null,
-    });
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({
+        plan: planId,
+        plan_activated_at: now,
+        plan_status: 'active',
+        razorpay_subscription_id: paymentResponse.razorpay_subscription_id || null,
+      })
+      .eq('id', user.id);
+
+    if (updateErr) throw updateErr;
 
     await savePaymentRecord(planId, paymentResponse);
     await loadPayments();
@@ -68,14 +80,14 @@ export function useBilling() {
   // ── Initiate subscription upgrade ───────────────────────────────
   /**
    * Production flow:
-   *   1. Call your backend / Firebase Cloud Function to create a Razorpay Subscription
+   *   1. Call your backend / Supabase Edge Function to create a Razorpay Subscription
    *   2. Backend returns { subscriptionId }
    *   3. Open Razorpay checkout with subscriptionId
    *   4. On success, call backend to verify signature
-   *   5. Backend verifies → updates Firestore → returns { ok: true }
+   *   5. Backend verifies → updates Supabase → returns { ok: true }
    *
    * For demo/testing: we simulate the backend call with a mock subscriptionId.
-   * Replace `createSubscriptionOnBackend` with your real Cloud Function call.
+   * Replace `createSubscriptionOnBackend` with your real Edge Function call.
    */
   const upgradePlan = useCallback(async (planId, { onSuccess, onFailure } = {}) => {
     if (!user || !profile) return;
@@ -87,13 +99,13 @@ export function useBilling() {
       if (!plan || plan.price === 0) return;
 
       // ── Step 1: Create subscription on backend ──────────────────
-      const subscriptionId = await createSubscriptionOnBackend(planId, user.uid, user.email);
+      const subscriptionId = await createSubscriptionOnBackend(planId, user.id, user.email);
 
       // ── Step 2: Open Razorpay checkout ──────────────────────────
       await openSubscriptionCheckout({
         subscriptionId,
         userEmail: user.email,
-        userName:  profile.displayName || user.email,
+        userName:  profile.display_name || user.email,
         planName:  plan.name,
 
         onSuccess: async (response) => {
@@ -133,14 +145,14 @@ export function useBilling() {
   };
 }
 
-// ─── Backend Stubs (replace with real Cloud Function calls) ──────────────────
+// ─── Backend Stubs (replace with real Edge Function calls) ───────────────────
 
 /**
  * Calls your backend to create a Razorpay Subscription.
- * Replace this with a fetch() call to your Firebase Cloud Function.
+ * Replace this with a fetch() call to your Supabase Edge Function.
  *
- * Cloud Function endpoint example:
- *   POST https://your-region-project.cloudfunctions.net/createSubscription
+ * Edge Function endpoint example:
+ *   POST https://your-project.supabase.co/functions/v1/createSubscription
  *   Body: { planId, userId, email }
  *   Returns: { subscriptionId: "sub_XXXXXXXXXX" }
  */
@@ -169,8 +181,8 @@ async function createSubscriptionOnBackend(planId, userId, email) {
  * Calls your backend to verify Razorpay payment signature.
  * ⚠️  This MUST be done server-side. Never verify signatures on the client.
  *
- * Cloud Function endpoint example:
- *   POST https://your-region-project.cloudfunctions.net/verifyPayment
+ * Edge Function endpoint example:
+ *   POST https://your-project.supabase.co/functions/v1/verifyPayment
  *   Body: { razorpay_payment_id, razorpay_subscription_id, razorpay_signature }
  *   Returns: { verified: true }
  */

@@ -1,5 +1,20 @@
 /**
- * Menu DNA — Firebase Cloud Functions
+ * ⚠️ DEPRECATED: This file is no longer used.
+ * Firebase Cloud Functions have been migrated to Supabase.
+ * 
+ * See SUPABASE_MIGRATION.md for:
+ * - Option A: Supabase Edge Functions (createSubscription, verifyPayment)
+ * - Option B: Node.js backend server
+ * 
+ * This file is kept for reference only and can be safely deleted.
+ */
+
+// =========================
+// LEGACY FIREBASE FUNCTIONS
+// =========================
+
+/**
+ * Menu DNA — Firebase Cloud Functions (DEPRECATED)
  * Razorpay backend: subscription creation, payment verification, webhook handling
  *
  * Deploy: firebase deploy --only functions

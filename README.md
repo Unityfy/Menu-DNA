@@ -22,10 +22,12 @@ Advisory-only — read-only ingestion, no automated changes to your POS.
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite
-- **Auth + Database**: Firebase (Auth + Firestore)
+- **Backend**: Supabase (PostgreSQL + Auth)
 - **Charts**: Recharts
 - **CSV Parsing**: PapaParse
+- **Payments**: Razorpay
 - **Styling**: Custom CSS design system (monochrome dark mode)
+- **Deployment**: Vercel
 
 ---
 
@@ -34,15 +36,15 @@ Advisory-only — read-only ingestion, no automated changes to your POS.
 ### 1. Prerequisites
 
 - Node.js 18+
-- A Firebase project (free Spark plan works)
+- A Supabase project (free tier works)
 
-### 2. Firebase Setup
+### 2. Supabase Setup
 
-1. Go to [Firebase Console](https://console.firebase.google.com/) → New project
-2. Enable **Authentication** → Email/Password
-3. Enable **Firestore Database** → Start in production mode
-4. Register a **Web app** → copy the config
-5. Deploy Firestore rules: `firebase deploy --only firestore:rules`
+1. Go to [Supabase](https://supabase.com) → Create a new project
+2. In SQL Editor, run the table creation scripts from `SUPABASE_MIGRATION.md`
+3. Enable Row Level Security (RLS) with provided policies
+4. Get **Project URL** and **Anon Key** from Settings → API
+5. Optional: Deploy backend functions (see `SUPABASE_MIGRATION.md`)
 
 ### 3. Local Development
 
@@ -54,19 +56,19 @@ cd menu-dna
 npm install
 
 # Create your environment file
-cp .env.example .env
-# → Fill in your Firebase credentials in .env
+cp .env.example .env.local
+# → Fill in your Supabase credentials in .env.local
 
 # Start development server
 npm run dev
-# → Opens at http://localhost:5173
+# → Opens at http://localhost:3000
 ```
 
 ### 4. First Run
 
 1. Create an account at `/auth`
 2. Go to **Data Upload** → drag & drop your CSV or click "Load sample data"
-3. Click **Ingest dishes** to save to Firestore
+3. Click **Ingest dishes** to save to Supabase
 4. Explore **Profitability** and **Intelligence** pages
 
 ---
@@ -96,36 +98,39 @@ Paneer Tikka,Starters,320,95,180,8
 
 ## Deployment
 
-### Option A: Vercel (Recommended)
+### 🚀 Vercel (Recommended)
 
+For step-by-step instructions, see [**VERCEL_DEPLOYMENT.md**](VERCEL_DEPLOYMENT.md).
+
+Quick start:
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-
-# Add environment variables in Vercel dashboard:
-# Settings → Environment Variables → add all VITE_FIREBASE_* vars
+# Use Vercel dashboard for easiest setup
+# 1. Push code to GitHub
+# 2. Import project at vercel.com/dashboard
+# 3. Add environment variables
+# 4. Deploy!
 ```
 
-### Option B: Firebase Hosting
+### Alternative: Other Platforms
 
+**Netlify, Railway, Render, etc.**
 ```bash
-# Install Firebase CLI
-npm i -g firebase-tools
-
-# Login and init (choose hosting, select 'dist' as public dir)
-firebase login
-firebase init
-
-# Build and deploy
+# Build the app
 npm run build
-firebase deploy
+
+# Output is in 'dist/' folder
+# Deploy this folder to your platform
 ```
 
-> ⚠️ **Important**: Add your Vercel/Firebase Hosting domain to Firebase Auth's authorized domains.  
-> Console → Authentication → Settings → Authorized domains → Add domain
+> **Note:** After deployment, add your live domain to Supabase Auth → URL Configuration → Redirect URLs
+
+---
+
+## Documentation
+
+- 📖 [**Supabase Migration Guide**](SUPABASE_MIGRATION.md) - How to set up database and backend
+- 🚀 [**Vercel Deployment Guide**](VERCEL_DEPLOYMENT.md) - Step-by-step Vercel setup
+- 📋 [**Migration Summary**](MIGRATION_SUMMARY.md) - Checklist for Firebase → Supabase migration
 
 ---
 
@@ -135,29 +140,37 @@ firebase deploy
 menu-dna/
 ├── src/
 │   ├── lib/
-│   │   └── menuAnalytics.js      # Core analytics engine (BCG, scoring, recommendations)
+│   │   ├── menuAnalytics.js      # Core analytics engine (BCG, scoring, recommendations)
+│   │   ├── posParser.js          # CSV parsing & normalization
+│   │   └── razorpay.js           # Payment processing
 │   ├── hooks/
-│   │   ├── useAuth.jsx           # Firebase auth state + login/register/logout
-│   │   └── useRestaurant.jsx     # Firestore data management + analytics pipeline
+│   │   ├── useAuth.jsx           # Supabase auth state + login/register/logout
+│   │   ├── useRestaurant.jsx     # Database data management + analytics pipeline
+│   │   └── useBilling.jsx        # Subscription & payment handling
 │   ├── pages/
 │   │   ├── AuthPage.jsx          # Login / Registration
-│   │   ├── DashboardPage.jsx     # Overview + KPIs + weekly recommendations
-│   │   ├── UploadPage.jsx        # CSV drag-drop + ingestion
+│   │   ├── DashboardPage.jsx     # Overview + KPIs + recommendations
 │   │   ├── ProfitabilityPage.jsx # Sortable dish table + bar charts
-│   │   └── IntelligencePage.jsx  # BCG scatter matrix + scoring rings + category breakdown
+│   │   ├── IntelligencePage.jsx  # BCG scatter matrix + scoring rings + category breakdown
+│   │   ├── UploadPage.jsx        # CSV drag-drop + ingestion
+│   │   └── BillingPage.jsx       # Subscription management
 │   ├── components/
 │   │   ├── Layout.jsx            # App shell wrapper
 │   │   ├── Sidebar.jsx           # Navigation
 │   │   ├── ChartTooltip.jsx      # Custom Recharts tooltips
 │   │   └── Toast.jsx             # Notification system
-│   ├── firebase.js               # Firebase initialization
+│   ├── supabase.js               # Supabase initialization
 │   ├── App.jsx                   # Router + auth guards
 │   ├── main.jsx                  # React entry point
 │   └── index.css                 # Design system + global styles
-├── firestore.rules               # Firestore security rules
-├── firebase.json                 # Firebase Hosting config
+├── functions/                    # Legacy Firebase Cloud Functions (deprecated)
 ├── .env.example                  # Environment variable template
-└── vite.config.js
+├── .vercelignore                 # Files to exclude from Vercel
+├── vercel.json                   # Vercel deployment configuration
+├── vite.config.js                # Vite build configuration
+├── SUPABASE_MIGRATION.md         # Database & auth setup guide
+├── MIGRATION_SUMMARY.md          # Migration checklist
+└── VERCEL_DEPLOYMENT.md          # Vercel deployment guide
 ```
 
 ---

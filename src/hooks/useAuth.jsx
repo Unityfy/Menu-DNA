@@ -1,13 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { supabase } from '../supabase';
 
 const AuthContext = createContext(null);
 
@@ -17,38 +9,84 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-        setProfile(snap.exists() ? snap.data() : null);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadProfile(session.user.id);
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsub;
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => subscription?.unsubscribe();
   }, []);
 
-  const login = (email, password) =>
-    signInWithEmailAndPassword(auth, email, password);
+  const loadProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-  const register = async (email, password, displayName, restaurantName) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(cred.user, { displayName });
-    await setDoc(doc(db, 'users', cred.user.uid), {
-      uid:            cred.user.uid,
-      email,
-      displayName,
-      restaurantName,
-      role:           'owner',
-      createdAt:      new Date().toISOString(),
-      plan:           'starter',
-    });
-    return cred;
+      if (error && error.code !== 'PGRST116') throw error;
+      setProfile(data || null);
+    } catch (e) {
+      console.error('Failed to load profile:', e);
+      setProfile(null);
+    }
   };
 
-  const logout = () => signOut(auth);
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const register = async (email, password, displayName, restaurantName) => {
+    // 1. Sign up user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (signUpError) throw signUpError;
+
+    // 2. Create user profile in database
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert([{
+        id:             signUpData.user.id,
+        email,
+        display_name:   displayName,
+        restaurant_name: restaurantName,
+        role:           'owner',
+        created_at:     new Date().toISOString(),
+        plan:           'starter',
+      }]);
+    if (profileError) throw profileError;
+
+    return signUpData;
+  };
+
+  const logout = () => supabase.auth.signOut();
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, login, register, logout }}>

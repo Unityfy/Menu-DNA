@@ -8,10 +8,6 @@ const NAV = [
   { to: '/intelligence',   icon: '◉', label: 'Intelligence' },
 ];
 
-const BOTTOM_NAV = [
-  { to: '/billing', icon: '◇', label: 'Plans & Billing' },
-];
-
 export default function Sidebar() {
   const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -57,7 +53,7 @@ export default function Sidebar() {
       </div>
 
       {/* Bottom nav */}
-      <div className="sidebar-section" style={{ marginTop: 'auto' }}>
+      {/* <div className="sidebar-section" style={{ marginTop: 'auto' }}>
         <div className="sidebar-section-label">Account</div>
         {BOTTOM_NAV.map(({ to, icon, label }) => (
           <NavLink
@@ -69,7 +65,7 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
-      </div>
+      </div> */}
 
       {/* Footer */}
       <div className="sidebar-footer">
@@ -93,11 +89,11 @@ export default function Sidebar() {
             color: 'var(--text-muted)',
             flexShrink: 0,
           }}>
-            {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
+            {(profile?.display_name || user?.email || 'U')[0].toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.displayName || user?.email?.split('@')[0]}
+              {profile?.display_name || user?.email?.split('@')[0]}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>
               {profile?.role || 'Owner'}
