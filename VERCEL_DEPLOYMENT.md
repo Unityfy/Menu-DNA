@@ -14,6 +14,7 @@
 If you haven't set this up yet, complete these steps from `SUPABASE_MIGRATION.md`:
 
 ### Create Database Tables
+
 Run in Supabase SQL Editor:
 ```sql
 -- Tables: users, menu_data, uploads, payments, subscriptions
