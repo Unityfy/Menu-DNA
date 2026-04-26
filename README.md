@@ -6,6 +6,7 @@
 
 ## What It Does
 
+
 Menu DNA ingests your POS export CSV and gives you:
 
 | Feature | Description |
