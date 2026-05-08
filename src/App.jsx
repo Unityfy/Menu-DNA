@@ -7,6 +7,7 @@ import DashboardPage             from './pages/DashboardPage';
 import UploadPage                from './pages/UploadPage';
 import ProfitabilityPage         from './pages/ProfitabilityPage';
 import IntelligencePage          from './pages/IntelligencePage';
+import AddItemPage               from './pages/AddItemPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -66,6 +67,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Layout><ProfitabilityPage /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/add-item"
+        element={
+          <ProtectedRoute>
+            <Layout><AddItemPage /></Layout>
           </ProtectedRoute>
         }
       />

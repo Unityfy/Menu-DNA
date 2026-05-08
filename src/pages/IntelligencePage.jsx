@@ -84,6 +84,16 @@ export default function IntelligencePage() {
     }, {});
   }, [currentMenu, activeClass]);
 
+  // Get dynamic thresholds from classified data (falls back to 50 if not available)
+  const thresholds = useMemo(() => {
+    if (!currentMenu.length) return { x: 50, y: 50 };
+    const first = currentMenu[0];
+    return {
+      x: first.popularityThreshold ?? 50,
+      y: first.profitabilityThreshold ?? 50,
+    };
+  }, [currentMenu]);
+
   const selectedDish = selected
     ? currentMenu.find(d => d.name === selected)
     : null;
@@ -194,9 +204,9 @@ export default function IntelligencePage() {
                   style={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
                 />
               </YAxis>
-              {/* Quadrant lines */}
-              <ReferenceLine x={50} stroke="var(--border-strong)" strokeDasharray="4 4" />
-              <ReferenceLine y={50} stroke="var(--border-strong)" strokeDasharray="4 4" />
+              {/* Quadrant lines — aligned to actual classification thresholds */}
+              <ReferenceLine x={thresholds.x} stroke="var(--border-strong)" strokeDasharray="4 4" />
+              <ReferenceLine y={thresholds.y} stroke="var(--border-strong)" strokeDasharray="4 4" />
 
               <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'var(--text-muted)' }} />
 
